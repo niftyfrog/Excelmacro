@@ -1,0 +1,140 @@
+ Sub MacroSeparete()
+     Call SearchByProductOrManufacturer
+     Call CountSuppliersAndRemoveDuplicatesAndShiftUp
+ End Sub
+
+Sub SearchByProductOrManufacturer()
+    Dim ws As Worksheet
+    Dim productName As String
+    Dim manufacturer As String
+    Dim lastRow As Long
+    Dim resultRow As Long
+    Dim i As Long
+    Dim matchFound As Boolean
+    
+    ' シートの指定（必要に応じてシート名を変更してください）
+    Set ws = ThisWorkbook.Sheets("Sheet2")
+    
+    ' 検索ボックスの値を取得
+    productName = ws.Range("B3").Value ' 品名
+    manufacturer = ws.Range("C3").Value ' 材料メーカー
+    
+    ' データの最終行を取得
+    lastRow = ws.Cells(ws.Rows.count, 6).End(xlUp).Row ' F列の最終行を取得
+    
+    ' 検索結果の表示開始行を指定（B6から開始）
+    resultRow = 6
+    
+    ' 検索結果表示の範囲をB6以降クリア
+    ws.Range("B6:B" & ws.Rows.count).ClearContents
+    ws.Range("C6:C" & ws.Rows.count).ClearContents
+    
+    ' 条件が入力されているか確認
+    If productName = "" And manufacturer = "" Then
+        MsgBox "品名または材料メーカーを入力してください。", vbExclamation
+        Exit Sub
+    End If
+    
+    ' データの範囲をループ（F6からデータが始まる）
+    matchFound = False
+    For i = 6 To lastRow ' F6から最終行までループ
+        ' 品名も材料メーカーも両方が入力されている場合（部分一致）
+        If productName <> "" And manufacturer <> "" Then
+            If ws.Cells(i, 6).Value Like "*" & productName & "*" And ws.Cells(i, 7).Value Like "*" & manufacturer & "*" Then
+                ws.Cells(resultRow, 2).Value = ws.Cells(i, 8).Value ' 発注先をB列に表示（B6以降）
+                resultRow = resultRow + 1
+                matchFound = True
+            End If
+        ' 品名だけが入力されている場合（部分一致）
+        ElseIf productName <> "" Then
+            If ws.Cells(i, 6).Value Like "*" & productName & "*" Then
+                ws.Cells(resultRow, 2).Value = ws.Cells(i, 8).Value ' 発注先をB列に表示（B6以降）
+                resultRow = resultRow + 1
+                matchFound = True
+            End If
+        ' 材料メーカーだけが入力されている場合（部分一致）
+        ElseIf manufacturer <> "" Then
+            If ws.Cells(i, 7).Value Like "*" & manufacturer & "*" Then
+                ws.Cells(resultRow, 2).Value = ws.Cells(i, 8).Value ' 発注先をB列に表示（B6以降）
+                resultRow = resultRow + 1
+                matchFound = True
+            End If
+        End If
+    Next i
+    
+    ' 検索結果がない場合の処理
+    If matchFound = False Then
+        MsgBox "該当する発注先がありません。", vbInformation
+    End If
+End Sub
+Sub CountSuppliersAndRemoveDuplicatesAndShiftUp()
+    Dim ws As Worksheet
+    Dim lastRow As Long
+    Dim resultRow As Long
+    Dim supplier As String
+    Dim supplierCollection As Collection
+    Dim supplierCount() As Long
+    Dim i As Long, j As Long
+    Dim found As Boolean
+    
+    ' シートの指定（必要に応じてシート名を変更してください）
+    Set ws = ThisWorkbook.Sheets("Sheet2")
+    
+    ' Collectionオブジェクトを作成（発注先のカウント用）
+    Set supplierCollection = New Collection
+    
+    ' B列の最終行を取得
+    lastRow = ws.Cells(ws.Rows.count, 2).End(xlUp).Row ' B列（発注先）の最終行を取得
+    
+    ' B列にデータがあるか確認し、ReDimのサイズを決定
+    If lastRow < 6 Then
+        MsgBox "発注先のデータが見つかりません。", vbExclamation
+        Exit Sub
+    End If
+    
+    ' カウント配列を動的に作成（最初は1つの要素だけを設定）
+    ReDim supplierCount(1 To 1)
+    
+    ' 発注先のカウント処理
+    For i = 6 To lastRow
+        supplier = ws.Cells(i, 2).Value ' B列の発注先
+        found = False
+        ' Collection内に既に発注先が存在するか確認
+        For j = 1 To supplierCollection.count
+            If supplierCollection(j) = supplier Then
+                supplierCount(j) = supplierCount(j) + 1 ' カウントを増やす
+                found = True
+                Exit For
+            End If
+        Next j
+        ' 発注先が新規の場合、コレクションに追加
+        If Not found Then
+            supplierCollection.Add supplier
+            ReDim Preserve supplierCount(1 To supplierCollection.count) ' 新しい要素を追加
+            supplierCount(supplierCollection.count) = 1 ' 初回は1をセット
+        End If
+    Next i
+    
+    ' C列にカウントを表示し、B列の重複を消す
+    resultRow = 6
+    For i = 1 To supplierCollection.count
+        found = False
+        For j = 6 To lastRow
+            If ws.Cells(j, 2).Value = supplierCollection(i) Then
+                If Not found Then
+                    ' 最初の発注先は残し、カウントを表示
+                    ws.Cells(j, 3).Value = supplierCount(i) ' C列にカウントを表示
+                    found = True
+                Else
+                    ' 重複している発注先をクリア（削除せずクリアのみ）
+                    ws.Cells(j, 2).ClearContents
+                    ws.Cells(j, 3).ClearContents
+                End If
+            End If
+        Next j
+    Next i
+    
+    ' 空白セルを一括して上に詰める処理
+    ws.Range("B6:C" & lastRow).SpecialCells(xlCellTypeBlanks).Delete Shift:=xlUp
+End Sub
+
