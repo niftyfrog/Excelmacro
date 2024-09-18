@@ -1,0 +1,64 @@
+Sub SearchByProductOrManufacturer()
+    Dim ws As Worksheet
+    Dim productName As String
+    Dim manufacturer As String
+    Dim lastRow As Long
+    Dim resultRow As Long
+    Dim i As Long
+    Dim matchFound As Boolean
+    
+    ' シートの指定（必要に応じてシート名を変更してください）
+    Set ws = ThisWorkbook.Sheets("Sheet1")
+    
+    ' 検索ボックスの値を取得
+    productName = ws.Range("E3").Value ' 商品名
+    manufacturer = ws.Range("F3").Value ' メーカー名
+    
+    ' データの最終行を取得
+    lastRow = ws.Cells(ws.Rows.Count, 2).End(xlUp).Row
+    
+    ' 検索結果の表示開始行を指定（E6から開始）
+    resultRow = 6
+    
+    ' 検索結果表示の範囲をE6以降のみクリア
+    ws.Range("E6:E" & ws.Rows.Count).ClearContents
+    
+    ' 条件が入力されているか確認
+    If productName = "" And manufacturer = "" Then
+        MsgBox "商品名またはメーカー名を入力してください。", vbExclamation
+        Exit Sub
+    End If
+    
+    ' データの範囲をループ
+    matchFound = False
+    For i = 1 To lastRow
+        ' 商品名もメーカー名も両方が入力されている場合（部分一致）
+        If productName <> "" And manufacturer <> "" Then
+            If ws.Cells(i, 1).Value Like "*" & productName & "*" And ws.Cells(i, 2).Value Like "*" & manufacturer & "*" Then
+                ws.Cells(resultRow, 5).Value = ws.Cells(i, 3).Value ' 発注先をE列に表示（E6以降）
+                resultRow = resultRow + 1
+                matchFound = True
+            End If
+        ' 商品名だけが入力されている場合（部分一致）
+        ElseIf productName <> "" Then
+            If ws.Cells(i, 1).Value Like "*" & productName & "*" Then
+                ws.Cells(resultRow, 5).Value = ws.Cells(i, 3).Value ' 発注先をE列に表示（E6以降）
+                resultRow = resultRow + 1
+                matchFound = True
+            End If
+        ' メーカー名だけが入力されている場合（部分一致）
+        ElseIf manufacturer <> "" Then
+            If ws.Cells(i, 2).Value Like "*" & manufacturer & "*" Then
+                ws.Cells(resultRow, 5).Value = ws.Cells(i, 3).Value ' 発注先をE列に表示（E6以降）
+                resultRow = resultRow + 1
+                matchFound = True
+            End If
+        End If
+    Next i
+    
+    ' 検索結果がない場合の処理
+    If matchFound = False Then
+        MsgBox "該当する発注先がありません。", vbInformation
+    End If
+End Sub
+
